@@ -104,8 +104,10 @@ hardest constraint ObjectSplitter hit does not apply here.
 - Engine: `mesh.split(only_watertight=False)` to enumerate connected
   components.
 - Selection: keep components whose size is above a threshold, where size is
-  measured by **face count as a percentage of the largest component**
-  (e.g. drop any shell under 1% of the biggest). A "keep largest only" toggle
+  measured by **bounding-box volume as a percentage of the largest component**
+  (e.g. drop any shell under 1% of the biggest). Bounding-box volume, not face
+  count: a physically tiny cube and a huge cube both have 12 faces, so face
+  count is a poor "small part" proxy. A "keep largest only" toggle
   short-circuits to keeping the single largest component.
 - Output: a single merged mesh of the surviving components.
 
