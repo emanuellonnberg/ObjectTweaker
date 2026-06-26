@@ -16,11 +16,14 @@ _REQ = os.path.join(_ROOT, "requirements-bundle.txt")
 
 def main() -> None:
     os.makedirs(_LIB, exist_ok=True)
+    # --no-deps: bundle only the listed packages. Without it, pip pulls
+    # numpy/scipy back in as transitive deps, re-introducing the
+    # Python-version-locked binaries we intentionally take from Cura.
     subprocess.check_call([
         sys.executable, "-m", "pip", "install",
-        "-r", _REQ, "--target", _LIB, "--upgrade",
+        "-r", _REQ, "--target", _LIB, "--no-deps", "--upgrade",
     ])
-    print(f"Bundled deps into {_LIB}")
+    print(f"Bundled deps into {_LIB} (numpy/scipy come from Cura).")
 
 
 if __name__ == "__main__":
