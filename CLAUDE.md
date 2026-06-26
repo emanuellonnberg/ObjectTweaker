@@ -25,6 +25,13 @@ Python, no Cura), wired to Cura by `ObjectTweaker.py`.
   in BOTH qml/ and qt6/.
 - "Remove small parts" ranks components by bounding-box volume, not face count
   (a tiny cube and a huge cube both have 12 faces).
+- **Imports must be relative inside the plugin.** Cura loads the plugin as the
+  package `ObjectTweaker`, so `core` is only reachable as `.core`. Use
+  `from .core.pipeline import ...` in `ObjectTweaker.py` and `from .cleanup
+  import ...` between `core/` modules. Absolute `from core.X import ...` works
+  in pytest (conftest puts the root on sys.path) but raises ImportError in
+  Cura — the plugin then silently fails to register ("did not return any
+  objects to register"). Test files themselves keep `from core.X` (top-level).
 
 ## Build
 `python scripts/bundle_deps.py` then `python scripts/build_curapackage.py`.

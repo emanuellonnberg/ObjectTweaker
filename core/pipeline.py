@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 import trimesh
 
-from core.cleanup import remove_small_parts
-from core.decimate import decimate
-from core.smooth import smooth
+from .cleanup import remove_small_parts
+from .decimate import decimate
+from .smooth import smooth
 
 
 @dataclass

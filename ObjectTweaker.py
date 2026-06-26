@@ -17,8 +17,8 @@ from UM.Operations.Operation import Operation
 from cura.CuraApplication import CuraApplication
 from cura.Scene.CuraSceneNode import CuraSceneNode
 
-from core.mesh_io import to_trimesh, from_trimesh
-from core.pipeline import SimplifyOptions, run
+from .core.mesh_io import to_trimesh, from_trimesh
+from .core.pipeline import SimplifyOptions, run
 
 _COMPUTE_TIMEOUT_S = 30.0
 
