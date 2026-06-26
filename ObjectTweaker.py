@@ -65,6 +65,7 @@ class ObjectTweaker(Tool):
             "DoDecimate", "DecimatePercent",
             "DoSmooth", "SmoothIterations",
             "Busy", "StatsText", "HasPreview", "SelectionValid",
+            "TriggerPreview", "TriggerApply", "TriggerReset",
         )
 
         Selection.selectionChanged.connect(self._onSelectionChanged)
@@ -156,6 +157,28 @@ class ObjectTweaker(Tool):
 
     def getHasPreview(self) -> bool:
         return self._has_preview
+
+    # ---- write-only action triggers (set from QML buttons) ------------
+    def getTriggerPreview(self) -> bool:
+        return False
+
+    def setTriggerPreview(self, value: bool) -> None:
+        if value:
+            self.preview()
+
+    def getTriggerApply(self) -> bool:
+        return False
+
+    def setTriggerApply(self, value: bool) -> None:
+        if value:
+            self.apply()
+
+    def getTriggerReset(self) -> bool:
+        return False
+
+    def setTriggerReset(self, value: bool) -> None:
+        if value:
+            self.reset()
 
     # ---- mesh extraction / build (Cura <-> ndarray) -------------------
     def _extractLocal(self, node: CuraSceneNode):

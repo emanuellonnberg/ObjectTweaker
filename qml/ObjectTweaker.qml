@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Emanuel Lönnberg.
 // This tool is released under the terms of the LGPLv3 or higher.
-import QtQuick 2.10
+import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 
 import UM 1.5 as UM
 import Cura 1.0 as Cura
@@ -11,88 +12,96 @@ Item {
     width: childrenRect.width
     height: childrenRect.height
 
-    property bool selectionValid: UM.ActiveTool.properties.getValue("SelectionValid")
-    property bool busy: UM.ActiveTool.properties.getValue("Busy")
-    property bool hasPreview: UM.ActiveTool.properties.getValue("HasPreview")
+    // Safe property read: returns fallback before the tool is fully active.
+    function val(name, fallback) {
+        return UM.ActiveTool ? UM.ActiveTool.properties.getValue(name) : fallback
+    }
 
     Column {
         id: items
         spacing: UM.Theme.getSize("default_margin").height
 
-        UM.CheckBox {
+        CheckBox {
             id: decimateCheck
             text: "Decimate (reduce triangles)"
-            checked: UM.ActiveTool.properties.getValue("DoDecimate")
-            onClicked: UM.ActiveTool.setProperty("DoDecimate", checked)
+            checked: base.val("DoDecimate", true)
+            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoDecimate", checked)
         }
-        Row {
-            spacing: UM.Theme.getSize("default_margin").width
+        RowLayout {
             visible: decimateCheck.checked
-            UM.Label { text: "Keep %" }
-            UM.Slider {
-                id: decimateSlider
-                width: UM.Theme.getSize("setting_control").width
-                from: 1; to: 100
-                value: UM.ActiveTool.properties.getValue("DecimatePercent")
-                onPressedChanged: if (!pressed) UM.ActiveTool.setProperty("DecimatePercent", value)
+            spacing: UM.Theme.getSize("default_margin").width
+            Label {
+                text: "Keep " + Math.round(decimateSlider.value) + "%"
+                verticalAlignment: Text.AlignVCenter
             }
-            UM.Label { text: Math.round(decimateSlider.value) + "%" }
+            Slider {
+                id: decimateSlider
+                from: 1; to: 100; stepSize: 1
+                value: base.val("DecimatePercent", 50)
+                Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("DecimatePercent", value)
+            }
         }
 
-        UM.CheckBox {
+        CheckBox {
             id: smoothCheck
             text: "Smooth surface"
-            checked: UM.ActiveTool.properties.getValue("DoSmooth")
-            onClicked: UM.ActiveTool.setProperty("DoSmooth", checked)
+            checked: base.val("DoSmooth", false)
+            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoSmooth", checked)
         }
-        Row {
-            spacing: UM.Theme.getSize("default_margin").width
+        RowLayout {
             visible: smoothCheck.checked
-            UM.Label { text: "Iterations" }
-            UM.Slider {
-                id: smoothSlider
-                width: UM.Theme.getSize("setting_control").width
-                from: 1; to: 50
-                value: UM.ActiveTool.properties.getValue("SmoothIterations")
-                onPressedChanged: if (!pressed) UM.ActiveTool.setProperty("SmoothIterations", Math.round(value))
+            spacing: UM.Theme.getSize("default_margin").width
+            Label {
+                text: "Iterations " + Math.round(smoothSlider.value)
+                verticalAlignment: Text.AlignVCenter
             }
-            UM.Label { text: Math.round(smoothSlider.value) }
+            Slider {
+                id: smoothSlider
+                from: 1; to: 50; stepSize: 1
+                value: base.val("SmoothIterations", 10)
+                Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("SmoothIterations", Math.round(value))
+            }
         }
 
-        UM.CheckBox {
+        CheckBox {
             id: cleanupCheck
             text: "Remove small parts"
-            checked: UM.ActiveTool.properties.getValue("DoRemoveSmall")
-            onClicked: UM.ActiveTool.setProperty("DoRemoveSmall", checked)
+            checked: base.val("DoRemoveSmall", false)
+            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoRemoveSmall", checked)
         }
-        UM.CheckBox {
+        CheckBox {
             visible: cleanupCheck.checked
             text: "Keep largest only"
-            checked: UM.ActiveTool.properties.getValue("KeepLargestOnly")
-            onClicked: UM.ActiveTool.setProperty("KeepLargestOnly", checked)
+            checked: base.val("KeepLargestOnly", false)
+            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("KeepLargestOnly", checked)
         }
 
-        UM.Label {
-            text: UM.ActiveTool.properties.getValue("StatsText")
+        Label {
+            text: base.val("StatsText", "")
             visible: text.length > 0
+            wrapMode: Text.WordWrap
         }
 
-        Row {
+        RowLayout {
+            width: parent.width
             spacing: UM.Theme.getSize("default_margin").width
-            Cura.SecondaryButton {
+
+            Button {
                 text: "Preview"
-                enabled: base.selectionValid && !base.busy
-                onClicked: UM.ActiveTool.triggerAction("preview")
+                enabled: base.val("SelectionValid", false) && !base.val("Busy", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("TriggerPreview", true)
             }
-            Cura.PrimaryButton {
+            Button {
                 text: "Apply"
-                enabled: base.hasPreview && !base.busy
-                onClicked: UM.ActiveTool.triggerAction("apply")
+                enabled: base.val("HasPreview", false) && !base.val("Busy", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("TriggerApply", true)
             }
-            Cura.SecondaryButton {
+            Button {
                 text: "Reset"
-                enabled: base.hasPreview && !base.busy
-                onClicked: UM.ActiveTool.triggerAction("reset")
+                enabled: base.val("HasPreview", false) && !base.val("Busy", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("TriggerReset", true)
             }
         }
     }
