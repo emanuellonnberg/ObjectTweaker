@@ -32,6 +32,13 @@ Python, no Cura), wired to Cura by `ObjectTweaker.py`.
   in pytest (conftest puts the root on sys.path) but raises ImportError in
   Cura — the plugin then silently fails to register ("did not return any
   objects to register"). Test files themselves keep `from core.X` (top-level).
+- **Tool panel uses plain QtQuick.Controls, not `UM.*` controls.** `UM.Slider`
+  is not a type in Cura 5.13 and a single unknown type blanks the entire panel
+  (silent — only a `__onQmlWarning` "X is not a type" in cura.log). Use bare
+  `CheckBox` / `Label` / `Slider` / `Button` from `QtQuick.Controls 2.15` (the
+  set ObjectSplitter uses). Buttons dispatch actions via write-only exposed
+  properties (`TriggerPreview`/`TriggerApply`/`TriggerReset`) set with
+  `UM.ActiveTool.setProperty(...)`, NOT `triggerAction()`.
 
 ## Build
 `python scripts/bundle_deps.py` then `python scripts/build_curapackage.py`.
