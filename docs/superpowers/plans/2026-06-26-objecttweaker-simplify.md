@@ -293,7 +293,7 @@ git commit -m "feat: add mesh_io ndarray<->trimesh conversion"
 
 **Interfaces:**
 - Consumes: a `trimesh.Trimesh`.
-- Produces: `remove_small_parts(mesh: trimesh.Trimesh, min_pct: float = 1.0, keep_largest_only: bool = False) -> tuple[trimesh.Trimesh, int]` returning `(result_mesh, parts_removed)`. `min_pct` is the face-count threshold as a percent of the largest component (a shell with fewer than `min_pct%` of the largest component's faces is dropped). `keep_largest_only=True` keeps exactly one component.
+- Produces: `remove_small_parts(mesh: trimesh.Trimesh, min_pct: float = 1.0, keep_largest_only: bool = False) -> tuple[trimesh.Trimesh, int]` returning `(result_mesh, parts_removed)`. `min_pct` is the bounding-box-volume threshold as a percent of the largest component (a shell whose bbox volume is under `min_pct%` of the largest component's is dropped). Bounding-box volume, not face count: a tiny cube and a huge cube both have 12 faces. `keep_largest_only=True` keeps exactly one component.
 
 - [ ] **Step 1: Write the failing test `tests/test_cleanup.py`**
 
