@@ -9,7 +9,9 @@ Python, no Cura), wired to Cura by `ObjectTweaker.py`.
 - `core/smooth.py`    Taubin/Laplacian smoothing
 - `core/cleanup.py`   remove small disconnected shells (bbox-volume metric)
 - `core/pipeline.py`  run enabled ops (remove-small -> decimate -> smooth) + stats
-- `ObjectTweaker.py`  Cura Tool: selection, preview thread, apply (undoable), reset
+- `core/cap.py`       ear-clip cap of one boundary loop (pure-Python, no engine)
+- `core/fillholes.py` detect open loops (single-use-edge chaining, no networkx) + cap all
+- `ObjectTweaker.py`  Cura Tool: Feature selector (Simplify|Fill Holes), selection, preview thread, apply (undoable), reset
 - `qml/` (UM 1.5) + `qt6/` (UM 1.6)  panels, keep in sync (only the import line differs)
 
 ## Tests

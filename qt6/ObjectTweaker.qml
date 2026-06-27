@@ -17,67 +17,97 @@ Item {
         return UM.ActiveTool ? UM.ActiveTool.properties.getValue(name) : fallback
     }
 
+    // Active feature ("simplify" | "fillholes").
+    property string feature: base.val("Feature", "simplify")
+
     Column {
         id: items
         spacing: UM.Theme.getSize("default_margin").height
 
-        CheckBox {
-            id: decimateCheck
-            text: "Decimate (reduce triangles)"
-            checked: base.val("DoDecimate", true)
-            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoDecimate", checked)
+        ComboBox {
+            id: featureCombo
+            width: UM.Theme.getSize("setting_control").width
+            model: ["Simplify", "Fill Holes"]
+            currentIndex: base.feature === "fillholes" ? 1 : 0
+            onActivated: if (UM.ActiveTool) UM.ActiveTool.setProperty("Feature", currentIndex === 1 ? "fillholes" : "simplify")
         }
-        RowLayout {
-            visible: decimateCheck.checked
-            spacing: UM.Theme.getSize("default_margin").width
+
+        // ---- Simplify ----
+        Column {
+            visible: base.feature === "simplify"
+            spacing: UM.Theme.getSize("default_margin").height
+
+            CheckBox {
+                id: decimateCheck
+                text: "Decimate (reduce triangles)"
+                checked: base.val("DoDecimate", true)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoDecimate", checked)
+            }
+            RowLayout {
+                visible: decimateCheck.checked
+                spacing: UM.Theme.getSize("default_margin").width
+                Label {
+                    text: "Keep " + Math.round(decimateSlider.value) + "%"
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Slider {
+                    id: decimateSlider
+                    from: 1; to: 100; stepSize: 1
+                    value: base.val("DecimatePercent", 50)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("DecimatePercent", value)
+                }
+            }
+
+            CheckBox {
+                id: smoothCheck
+                text: "Smooth surface"
+                checked: base.val("DoSmooth", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoSmooth", checked)
+            }
+            RowLayout {
+                visible: smoothCheck.checked
+                spacing: UM.Theme.getSize("default_margin").width
+                Label {
+                    text: "Iterations " + Math.round(smoothSlider.value)
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Slider {
+                    id: smoothSlider
+                    from: 1; to: 50; stepSize: 1
+                    value: base.val("SmoothIterations", 10)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("SmoothIterations", Math.round(value))
+                }
+            }
+
+            CheckBox {
+                id: cleanupCheck
+                text: "Remove small parts"
+                checked: base.val("DoRemoveSmall", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoRemoveSmall", checked)
+            }
+            CheckBox {
+                visible: cleanupCheck.checked
+                text: "Keep largest only"
+                checked: base.val("KeepLargestOnly", false)
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("KeepLargestOnly", checked)
+            }
+        }
+
+        // ---- Fill Holes ----
+        Column {
+            visible: base.feature === "fillholes"
+            spacing: UM.Theme.getSize("default_margin").height
+
             Label {
-                text: "Keep " + Math.round(decimateSlider.value) + "%"
-                verticalAlignment: Text.AlignVCenter
-            }
-            Slider {
-                id: decimateSlider
-                from: 1; to: 100; stepSize: 1
-                value: base.val("DecimatePercent", 50)
-                Layout.preferredWidth: UM.Theme.getSize("setting_control").width
-                onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("DecimatePercent", value)
+                text: "Caps all open boundary loops to make the model watertight."
+                wrapMode: Text.WordWrap
+                width: UM.Theme.getSize("setting_control").width
             }
         }
 
-        CheckBox {
-            id: smoothCheck
-            text: "Smooth surface"
-            checked: base.val("DoSmooth", false)
-            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoSmooth", checked)
-        }
-        RowLayout {
-            visible: smoothCheck.checked
-            spacing: UM.Theme.getSize("default_margin").width
-            Label {
-                text: "Iterations " + Math.round(smoothSlider.value)
-                verticalAlignment: Text.AlignVCenter
-            }
-            Slider {
-                id: smoothSlider
-                from: 1; to: 50; stepSize: 1
-                value: base.val("SmoothIterations", 10)
-                Layout.preferredWidth: UM.Theme.getSize("setting_control").width
-                onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("SmoothIterations", Math.round(value))
-            }
-        }
-
-        CheckBox {
-            id: cleanupCheck
-            text: "Remove small parts"
-            checked: base.val("DoRemoveSmall", false)
-            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("DoRemoveSmall", checked)
-        }
-        CheckBox {
-            visible: cleanupCheck.checked
-            text: "Keep largest only"
-            checked: base.val("KeepLargestOnly", false)
-            onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("KeepLargestOnly", checked)
-        }
-
+        // ---- Shared: stats + actions ----
         Label {
             text: base.val("StatsText", "")
             visible: text.length > 0
