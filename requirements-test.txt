@@ -3,3 +3,4 @@ fast-simplification
 numpy
 scipy
 pytest
+manifold3d
