@@ -115,9 +115,10 @@ An optional `params["rotation"]` (degrees) rotates the outline about its center.
 - **Mouse picking:** implement `event(self, event)`. On
   `Event.MousePressEvent` with `LeftButton` (and the Emboss feature active),
   run a `PickingPass` (`cura.PickingPass`) to get the world hit position; map it
-  to model-local; query the local trimesh for the nearest face to get the
-  surface **normal** (`trimesh.proximity` / `mesh.nearest.on_surface`). Store
-  `self._pick_point` (local) and `self._pick_normal`. Mark a pick available.
+  to model-local. Store `self._pick_point` (local). The surface **normal** is
+  computed at compute time as the normal of the face whose centroid is nearest
+  the pick (`core.emboss.nearest_face_normal`, pure numpy — avoids rtree, which
+  `mesh.nearest.on_surface` would require). Mark a pick available.
 - `_computeForFeature(mesh)` for `"emboss"`: if no pick yet, return
   `(mesh, "click the model to place")`; else build the outline via
   `stamp.shape_outline`, call `emboss.emboss(...)`. On `ok` →
