@@ -19,6 +19,7 @@ from cura.Scene.CuraSceneNode import CuraSceneNode
 
 from .core.mesh_io import to_trimesh, from_trimesh
 from .core.pipeline import SimplifyOptions, run
+from .core.fillholes import fill_holes
 
 _COMPUTE_TIMEOUT_S = 30.0
 
@@ -50,6 +51,7 @@ class ObjectTweaker(Tool):
         self._decimate_percent = 50.0   # UI percent (keep 50%)
         self._do_smooth = False
         self._smooth_iterations = 10
+        self._feature = "simplify"   # "simplify" | "fillholes"
 
         self._busy = False
         self._stats_text = ""
@@ -61,6 +63,7 @@ class ObjectTweaker(Tool):
         self._preview_mesh: Optional[MeshData] = None
 
         self.setExposedProperties(
+            "Feature",
             "DoRemoveSmall", "MinPct", "KeepLargestOnly",
             "DoDecimate", "DecimatePercent",
             "DoSmooth", "SmoothIterations",
@@ -90,6 +93,14 @@ class ObjectTweaker(Tool):
         return self._selectedMeshNode() is not None
 
     # ---- exposed scalar properties ------------------------------------
+    def getFeature(self) -> str:
+        return self._feature
+
+    def setFeature(self, value: str) -> None:
+        if value != self._feature:
+            self._feature = value
+            self.propertyChanged.emit()
+
     def getDoRemoveSmall(self) -> bool:
         return self._do_remove_small
 
@@ -217,6 +228,15 @@ class ObjectTweaker(Tool):
             smooth_method="taubin",
         )
 
+    def _computeForFeature(self, mesh):
+        """Run the active feature; return (result_mesh, stats_text)."""
+        if self._feature == "fillholes":
+            filled, n = fill_holes(mesh)
+            return filled, f"holes filled: {n}"
+        result = run(mesh, self._currentOptions())
+        extra = f", removed {result.parts_removed} part(s)" if result.parts_removed else ""
+        return result.mesh, f"tris: {result.tris_before} -> {result.tris_after}{extra}"
+
     # ---- preview / apply / reset --------------------------------------
     def preview(self) -> None:
         node = self._selectedMeshNode()
@@ -235,7 +255,7 @@ class ObjectTweaker(Tool):
 
         def _compute() -> None:
             mesh = self._extractLocal(node)
-            result_box["result"] = run(mesh, self._currentOptions())
+            result_box["result"] = self._computeForFeature(mesh)
 
         worker = threading.Thread(target=_compute, daemon=True)
         worker.start()
@@ -247,12 +267,11 @@ class ObjectTweaker(Tool):
                 self._stats_text = "Failed (timed out or error)"
                 self._has_preview = False
             else:
-                result = result_box["result"]
-                self._preview_mesh = self._buildMeshData(result.mesh)
+                result_mesh, stats_text = result_box["result"]
+                self._preview_mesh = self._buildMeshData(result_mesh)
                 node.setMeshData(self._preview_mesh)
                 node.calculateBoundingBoxMesh()
-                extra = f", removed {result.parts_removed} part(s)" if result.parts_removed else ""
-                self._stats_text = f"tris: {result.tris_before} -> {result.tris_after}{extra}"
+                self._stats_text = stats_text
                 self._has_preview = True
             self.propertyChanged.emit()
 
