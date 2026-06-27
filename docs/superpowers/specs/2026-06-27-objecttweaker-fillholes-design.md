@@ -67,9 +67,12 @@ orchestrates loops and stitching. Both are Cura-free and unit-tested.
 
 ### 3.1 Boundary loop detection
 
-`fill_holes` calls `mesh.outline()` (trimesh) and reads `outline.discrete`, a
-list of 3D polylines — one per open boundary loop. A watertight mesh yields no
-loops.
+`fill_holes` finds boundary edges (each used by exactly one face) and chains
+them into loops by walking the boundary-edge graph — each boundary vertex of a
+simple hole has degree two. A watertight mesh has no boundary edges, hence no
+loops. (We do *not* use trimesh's `outline().discrete`: that pulls in
+**networkx**, which Cura does not ship and we do not bundle. Manual chaining is
+pure numpy + stdlib.)
 
 ### 3.2 Per-loop cap (`core/cap.py`)
 
