@@ -27,9 +27,9 @@ Item {
         ComboBox {
             id: featureCombo
             width: UM.Theme.getSize("setting_control").width
-            model: ["Simplify", "Fill Holes"]
-            currentIndex: base.feature === "fillholes" ? 1 : 0
-            onActivated: if (UM.ActiveTool) UM.ActiveTool.setProperty("Feature", currentIndex === 1 ? "fillholes" : "simplify")
+            model: ["Simplify", "Fill Holes", "Emboss"]
+            currentIndex: base.feature === "emboss" ? 2 : (base.feature === "fillholes" ? 1 : 0)
+            onActivated: if (UM.ActiveTool) UM.ActiveTool.setProperty("Feature", currentIndex === 2 ? "emboss" : (currentIndex === 1 ? "fillholes" : "simplify"))
         }
 
         // ---- Simplify ----
@@ -104,6 +104,105 @@ Item {
                 text: "Caps all open boundary loops to make the model watertight."
                 wrapMode: Text.WordWrap
                 width: UM.Theme.getSize("setting_control").width
+            }
+        }
+
+        // ---- Emboss ----
+        Column {
+            visible: base.feature === "emboss"
+            spacing: UM.Theme.getSize("default_margin").height
+
+            property string shape: base.val("Shape", "circle")
+
+            Label {
+                text: "Click the model to place the stamp."
+                wrapMode: Text.WordWrap
+                width: UM.Theme.getSize("setting_control").width
+            }
+
+            ComboBox {
+                id: shapeCombo
+                width: UM.Theme.getSize("setting_control").width
+                model: ["Circle", "Rectangle", "Star"]
+                currentIndex: parent.shape === "star" ? 2 : (parent.shape === "rectangle" ? 1 : 0)
+                onActivated: if (UM.ActiveTool) UM.ActiveTool.setProperty("Shape", currentIndex === 2 ? "star" : (currentIndex === 1 ? "rectangle" : "circle"))
+            }
+
+            RowLayout {
+                visible: parent.shape === "circle" || parent.shape === "star"
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Diameter " + Math.round(diaSlider.value); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: diaSlider
+                    from: 1; to: 100; stepSize: 1
+                    value: base.val("Diameter", 10)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("Diameter", value)
+                }
+            }
+            RowLayout {
+                visible: parent.shape === "rectangle"
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Width " + Math.round(wSlider.value); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: wSlider
+                    from: 1; to: 100; stepSize: 1
+                    value: base.val("RectWidth", 10)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("RectWidth", value)
+                }
+            }
+            RowLayout {
+                visible: parent.shape === "rectangle"
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Height " + Math.round(hSlider.value); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: hSlider
+                    from: 1; to: 100; stepSize: 1
+                    value: base.val("RectHeight", 10)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("RectHeight", value)
+                }
+            }
+            RowLayout {
+                visible: parent.shape === "star"
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Points " + Math.round(ptSlider.value); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: ptSlider
+                    from: 3; to: 12; stepSize: 1
+                    value: base.val("StarPoints", 5)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("StarPoints", Math.round(value))
+                }
+            }
+
+            RowLayout {
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Rotation " + Math.round(rotSlider.value); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: rotSlider
+                    from: 0; to: 360; stepSize: 1
+                    value: base.val("Rotation", 0)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("Rotation", value)
+                }
+            }
+            RowLayout {
+                spacing: UM.Theme.getSize("default_margin").width
+                Label { text: "Depth " + depthSlider.value.toFixed(1); verticalAlignment: Text.AlignVCenter }
+                Slider {
+                    id: depthSlider
+                    from: 0.2; to: 10; stepSize: 0.2
+                    value: base.val("Depth", 1.0)
+                    Layout.preferredWidth: UM.Theme.getSize("setting_control").width
+                    onPressedChanged: if (!pressed && UM.ActiveTool) UM.ActiveTool.setProperty("Depth", value)
+                }
+            }
+            CheckBox {
+                text: "Engrave (recess instead of raise)"
+                checked: base.val("EmbossMode", "emboss") === "engrave"
+                onClicked: if (UM.ActiveTool) UM.ActiveTool.setProperty("EmbossMode", checked ? "engrave" : "emboss")
             }
         }
 

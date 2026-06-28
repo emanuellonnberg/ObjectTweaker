@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Emanuel Lönnberg.
 # This tool is released under the terms of the LGPLv3 or higher.
 """Cura Tool adapter for ObjectTweaker's Simplify feature."""
+import os
 import threading
 from typing import Optional
 
@@ -17,9 +18,14 @@ from UM.Operations.Operation import Operation
 from cura.CuraApplication import CuraApplication
 from cura.Scene.CuraSceneNode import CuraSceneNode
 
+from UM.Event import Event, MouseEvent
+from cura.PickingPass import PickingPass
+
 from .core.mesh_io import to_trimesh, from_trimesh
 from .core.pipeline import SimplifyOptions, run
 from .core.fillholes import fill_holes
+from .core.stamp import shape_outline
+from .core.emboss import emboss, nearest_face_normal
 
 _COMPUTE_TIMEOUT_S = 30.0
 
@@ -51,7 +57,19 @@ class ObjectTweaker(Tool):
         self._decimate_percent = 50.0   # UI percent (keep 50%)
         self._do_smooth = False
         self._smooth_iterations = 10
-        self._feature = "simplify"   # "simplify" | "fillholes"
+        self._feature = "simplify"   # "simplify" | "fillholes" | "emboss"
+        self._shape = "circle"           # "circle" | "rectangle" | "star"
+        self._diameter = 10.0
+        self._rect_width = 10.0
+        self._rect_height = 10.0
+        self._star_points = 5
+        self._star_inner_ratio = 0.5
+        self._rotation = 0.0
+        self._depth = 1.0
+        self._emboss_mode = "emboss"     # "emboss" | "engrave"
+        self._pick_point = None
+        self._has_pick = False
+        self._controller = self.getController()
 
         self._busy = False
         self._stats_text = ""
@@ -64,6 +82,8 @@ class ObjectTweaker(Tool):
 
         self.setExposedProperties(
             "Feature",
+            "Shape", "Diameter", "RectWidth", "RectHeight",
+            "StarPoints", "StarInnerRatio", "Rotation", "Depth", "EmbossMode",
             "DoRemoveSmall", "MinPct", "KeepLargestOnly",
             "DoDecimate", "DecimatePercent",
             "DoSmooth", "SmoothIterations",
@@ -77,6 +97,8 @@ class ObjectTweaker(Tool):
     def _onSelectionChanged(self) -> None:
         # Drop any uncommitted preview when the selection changes.
         self._revertPreview()
+        self._has_pick = False
+        self._pick_point = None
         self._stats_text = ""
         self._has_preview = False
         self.propertyChanged.emit()
@@ -99,6 +121,87 @@ class ObjectTweaker(Tool):
     def setFeature(self, value: str) -> None:
         if value != self._feature:
             self._feature = value
+            self._has_pick = False
+            self._pick_point = None
+            self.propertyChanged.emit()
+
+    def getShape(self) -> str:
+        return self._shape
+
+    def setShape(self, value: str) -> None:
+        if value != self._shape:
+            self._shape = value
+            self.propertyChanged.emit()
+
+    def getDiameter(self) -> float:
+        return self._diameter
+
+    def setDiameter(self, value: float) -> None:
+        value = float(value)
+        if value != self._diameter:
+            self._diameter = value
+            self.propertyChanged.emit()
+
+    def getRectWidth(self) -> float:
+        return self._rect_width
+
+    def setRectWidth(self, value: float) -> None:
+        value = float(value)
+        if value != self._rect_width:
+            self._rect_width = value
+            self.propertyChanged.emit()
+
+    def getRectHeight(self) -> float:
+        return self._rect_height
+
+    def setRectHeight(self, value: float) -> None:
+        value = float(value)
+        if value != self._rect_height:
+            self._rect_height = value
+            self.propertyChanged.emit()
+
+    def getStarPoints(self) -> int:
+        return self._star_points
+
+    def setStarPoints(self, value: int) -> None:
+        value = int(value)
+        if value != self._star_points:
+            self._star_points = value
+            self.propertyChanged.emit()
+
+    def getStarInnerRatio(self) -> float:
+        return self._star_inner_ratio
+
+    def setStarInnerRatio(self, value: float) -> None:
+        value = float(value)
+        if value != self._star_inner_ratio:
+            self._star_inner_ratio = value
+            self.propertyChanged.emit()
+
+    def getRotation(self) -> float:
+        return self._rotation
+
+    def setRotation(self, value: float) -> None:
+        value = float(value)
+        if value != self._rotation:
+            self._rotation = value
+            self.propertyChanged.emit()
+
+    def getDepth(self) -> float:
+        return self._depth
+
+    def setDepth(self, value: float) -> None:
+        value = float(value)
+        if value != self._depth:
+            self._depth = value
+            self.propertyChanged.emit()
+
+    def getEmbossMode(self) -> str:
+        return self._emboss_mode
+
+    def setEmbossMode(self, value: str) -> None:
+        if value != self._emboss_mode:
+            self._emboss_mode = value
             self.propertyChanged.emit()
 
     def getDoRemoveSmall(self) -> bool:
@@ -228,11 +331,62 @@ class ObjectTweaker(Tool):
             smooth_method="taubin",
         )
 
+    def event(self, event) -> bool:
+        result = super().event(event)
+        if self._feature != "emboss":
+            return result
+        if event.type == Event.MousePressEvent and MouseEvent.LeftButton in event.buttons:
+            node = self._selectedMeshNode()
+            if node is None:
+                return result
+            camera = self._controller.getScene().getActiveCamera()
+            if camera is None:
+                return result
+            picking_pass = PickingPass(camera.getViewportWidth(), camera.getViewportHeight())
+            picking_pass.render()
+            world = picking_pass.getPickedPosition(event.x, event.y)
+            if world is None:
+                return result
+            matrix = numpy.asarray(node.getWorldTransformation().getData(), dtype=numpy.float64)
+            inv = numpy.linalg.inv(matrix)
+            local = inv @ numpy.array([world.x, world.y, world.z, 1.0])
+            self._pick_point = local[:3] / local[3]
+            self._has_pick = True
+            self._stats_text = "placed - click Preview"
+            self.propertyChanged.emit()
+        return result
+
+    def _captureDir(self) -> str:
+        """Directory where emboss dumps failed-boolean inputs for diagnosis."""
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
+
+    def _shapeParams(self) -> dict:
+        return {
+            "diameter": self._diameter,
+            "width": self._rect_width,
+            "height": self._rect_height,
+            "points": self._star_points,
+            "inner_ratio": self._star_inner_ratio,
+            "rotation": self._rotation,
+        }
+
     def _computeForFeature(self, mesh):
         """Run the active feature; return (result_mesh, stats_text)."""
         if self._feature == "fillholes":
             filled, n = fill_holes(mesh)
             return filled, f"holes filled: {n}"
+        if self._feature == "emboss":
+            if not self._has_pick or self._pick_point is None:
+                return mesh, "click the model to place"
+            outline = shape_outline(self._shape, self._shapeParams())
+            normal = nearest_face_normal(mesh, self._pick_point)
+            res, ok, reason = emboss(mesh, self._pick_point, normal, outline,
+                                     depth=self._depth, mode=self._emboss_mode,
+                                     capture_dir=self._captureDir())
+            if not ok:
+                Logger.log("w", "ObjectTweaker emboss failed: %s", reason)
+                return mesh, reason or "emboss failed"
+            return res, "engraved" if self._emboss_mode == "engrave" else "embossed"
         result = run(mesh, self._currentOptions())
         extra = f", removed {result.parts_removed} part(s)" if result.parts_removed else ""
         return result.mesh, f"tris: {result.tris_before} -> {result.tris_after}{extra}"

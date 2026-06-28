@@ -11,7 +11,9 @@ Python, no Cura), wired to Cura by `ObjectTweaker.py`.
 - `core/pipeline.py`  run enabled ops (remove-small -> decimate -> smooth) + stats
 - `core/cap.py`       ear-clip cap of one boundary loop (pure-Python, no engine)
 - `core/fillholes.py` detect open loops (single-use-edge chaining, no networkx) + cap all
-- `ObjectTweaker.py`  Cura Tool: Feature selector (Simplify|Fill Holes), selection, preview thread, apply (undoable), reset
+- `core/stamp.py`     2D shape outlines + extruded prism (reuses cap._earclip)
+- `core/emboss.py`    nearest-face normal + boolean stamp (manifold3d), emboss/engrave
+- `ObjectTweaker.py`  Cura Tool: Feature selector (Simplify|Fill Holes|Emboss), selection, mouse-pick (PickingPass) for emboss, preview thread, apply (undoable), reset
 - `qml/` (UM 1.5) + `qt6/` (UM 1.6)  panels, keep in sync (only the import line differs)
 
 ## Tests
@@ -27,6 +29,9 @@ Python, no Cura), wired to Cura by `ObjectTweaker.py`.
   in BOTH qml/ and qt6/.
 - "Remove small parts" ranks components by bounding-box volume, not face count
   (a tiny cube and a huge cube both have 12 faces).
+- Emboss needs a boolean engine (manifold3d, bundled) and a watertight-ish
+  model. Surface normal at the click is the nearest-face-by-centroid normal
+  (pure numpy — avoids rtree, which trimesh's nearest.on_surface needs).
 - **Imports must be relative inside the plugin.** Cura loads the plugin as the
   package `ObjectTweaker`, so `core` is only reachable as `.core`. Use
   `from .core.pipeline import ...` in `ObjectTweaker.py` and `from .cleanup
