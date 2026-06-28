@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Emanuel Lönnberg.
 # This tool is released under the terms of the LGPLv3 or higher.
 """Cura Tool adapter for ObjectTweaker's Simplify feature."""
+import os
 import threading
 from typing import Optional
 
@@ -355,6 +356,10 @@ class ObjectTweaker(Tool):
             self.propertyChanged.emit()
         return result
 
+    def _captureDir(self) -> str:
+        """Directory where emboss dumps failed-boolean inputs for diagnosis."""
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
+
     def _shapeParams(self) -> dict:
         return {
             "diameter": self._diameter,
@@ -375,10 +380,12 @@ class ObjectTweaker(Tool):
                 return mesh, "click the model to place"
             outline = shape_outline(self._shape, self._shapeParams())
             normal = nearest_face_normal(mesh, self._pick_point)
-            res, ok = emboss(mesh, self._pick_point, normal, outline,
-                             depth=self._depth, mode=self._emboss_mode)
+            res, ok, reason = emboss(mesh, self._pick_point, normal, outline,
+                                     depth=self._depth, mode=self._emboss_mode,
+                                     capture_dir=self._captureDir())
             if not ok:
-                return mesh, "boolean failed - try Fill Holes"
+                Logger.log("w", "ObjectTweaker emboss failed: %s", reason)
+                return mesh, reason or "emboss failed"
             return res, "engraved" if self._emboss_mode == "engrave" else "embossed"
         result = run(mesh, self._currentOptions())
         extra = f", removed {result.parts_removed} part(s)" if result.parts_removed else ""
